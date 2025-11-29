@@ -1,93 +1,61 @@
 import streamlit as st
-import subprocess
-import sys
-
-# ---------------------------------------------------------
-# 🚨 긴급 처방: 라이브러리 강제 업데이트
-# ---------------------------------------------------------
-try:
-    import google.generativeai as genai
-    import importlib.metadata
-    # 현재 설치된 버전 확인
-    version = importlib.metadata.version("google-generativeai")
-    # 구버전이면 강제 업데이트 실행
-    if version < "0.7.2":
-        raise ImportError
-except ImportError:
-    st.warning("⚠️ 최신 AI 기능을 설치 중입니다... 잠시만 기다려주세요 (약 1분)")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "google-generativeai"])
-    st.success("설치 완료! 앱이 자동으로 새로고침 됩니다.")
-    st.rerun()
-
-# ---------------------------------------------------------
-# 1. 설정 및 API 키 연결
-# ---------------------------------------------------------
-st.set_page_config(page_title="AI 와인 소믈리에", page_icon="🍷")
-
-# 다시 임포트 (업데이트된 버전 적용)
 import google.generativeai as genai
-from PIL import Image
+import importlib.metadata
+
+st.set_page_config(page_title="와인 앱 진단모드", page_icon="🔧")
+
+# ---------------------------------------------------------
+# 🕵️ 자가 진단 (여기가 핵심!)
+# ---------------------------------------------------------
+st.title("🔧 앱 상태 진단")
 
 try:
-    if "GOOGLE_API_KEY" in st.secrets:
-        genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+    # 현재 설치된 라이브러리 버전 확인
+    version = importlib.metadata.version("google-generativeai")
+    st.metric(label="현재 설치된 AI 버전", value=version)
+    
+    if version < "0.7.2":
+        st.error(f"🚨 버전이 너무 낮습니다! (현재: {version})")
+        st.markdown("""
+        **[해결 방법]**
+        GitHub의 `requirements.txt` 파일 이름이나 내용이 틀렸을 확률이 99%입니다.
+        
+        1. GitHub 파일명이 **requirements.txt** (s가 있는지, 오타 없는지) 확인하세요.
+        2. 파일 내용에 **google-generativeai>=0.7.2** 라고 적혀있는지 확인하세요.
+        3. 확인 후 앱을 **Reboot** 하세요.
+        """)
     else:
-        st.error("API 키가 없습니다. Settings -> Secrets에 키를 넣어주세요.")
-        st.stop()
+        st.success("✅ 버전은 정상입니다! (0.7.2 이상)")
+
 except Exception as e:
-    st.error(f"설정 오류: {e}")
-
-# 모델 설정
-model = genai.GenerativeModel('gemini-1.5-flash')
+    st.error(f"버전 확인 불가: {e}")
 
 # ---------------------------------------------------------
-# 2. 분석 로직
+# 🍷 와인 분석 기능 (버전이 맞을 때만 실행)
 # ---------------------------------------------------------
-def analyze_wine(image):
-    prompt = """
-    이 와인 라벨 사진을 분석하여 정보를 한국어로 정리해 주세요.
-    가격은 한국의 세금/유통 구조를 고려하여 미국 현지 가격 대비 현실적인 한국 샵 구매가를 추정해 주세요.
+# API 키 설정
+if "GOOGLE_API_KEY" in st.secrets:
+    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+else:
+    st.warning("API 키가 아직 설정되지 않았습니다.")
 
-    **1. 🍷 기본 정보**
-    *   이름 (한글/영어):
-    *   빈티지:
-    *   생산지/와이너리:
-    *   포도 품종:
-
-    **2. 👅 맛과 향**
-    *   바디/산도/타닌/당도 (1~5점):
-    *   주요 향:
-    *   어울리는 음식:
-
-    **3. ⭐ 평점**
-    *   주요 평점 (RP, Vivino 등):
-    *   평가 요약:
-
-    **4. 💰 가격 비교 (추정)**
-    *   🇺🇸 미국 현지 가격 ($):
-    *   🇰🇷 한국 와인샵 가격 (₩): (세금/마진 고려 보정치)
-
-    **5. 💡 총평**
-    *   구매 가치 및 시음 적기:
-    """
-    response = model.generate_content([prompt, image])
-    return response.text
-
-# ---------------------------------------------------------
-# 3. 화면 표시
-# ---------------------------------------------------------
-st.title("🍷 AI 와인 소믈리에")
-st.caption("최신 Gemini 1.5 Flash 모델이 분석합니다.")
+# 모델 연결 시도
+if st.button("테스트 실행 (누르면 분석 시작)"):
+    try:
+        # 모델 불러오기
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content("와인 짧게 한줄 설명")
+        st.info(f"테스트 결과: {response.text}")
+    except Exception as e:
+        st.error(f"⚠️ 여전히 오류 발생: {e}")
+        st.markdown("버전이 정상인데도 이 오류가 나면, **API Key를 다시 발급**받아야 할 수도 있습니다.")
 
 img_file = st.camera_input("와인 라벨을 촬영하세요")
-
 if img_file:
-    image = Image.open(img_file)
-    with st.spinner('🍷 소믈리에가 분석 중입니다...'):
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    with st.spinner('분석 중...'):
         try:
-            result = analyze_wine(image)
-            st.divider()
-            st.markdown(result)
+            res = model.generate_content(["이 와인 라벨 정보를 한국어로 알려줘", img_file])
+            st.markdown(res.text)
         except Exception as e:
-            st.error(f"분석 실패: {e}")
-            st.info("팁: 사진이 너무 어둡거나 흔들리지 않았는지 확인해주세요.")
+            st.error(str(e))
