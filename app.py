@@ -45,7 +45,7 @@ except Exception as e:
 
 # ⭐ 요청하신 Pro 모델 설정 (가장 똑똑한 모델)
 # 만약 2.5 버전이 있다면 'gemini-2.5-pro'로 수정하시면 됩니다.
-model_name = "gemini-1.5-pro" 
+model_name = "gemini-2.5-pro" 
 model = genai.GenerativeModel(model_name)
 
 # ---------------------------------------------------------
