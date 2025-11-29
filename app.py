@@ -19,7 +19,7 @@ try:
 except Exception as e:
     st.error(f"설정 오류: {e}")
 
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-1.5-pro')
 
 # 분석 함수
 def analyze_wine(image):
